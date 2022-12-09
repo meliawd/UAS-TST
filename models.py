@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 
 class data_Mahasiswa(Base):
     __tablename__="Mahasiswa"
-    nim = Column(Integer,primary_key=True,index=True)
+    nim = Column(Integer,primary_key=True)
     nama = Column(String)
     ip1 = Column(float)
     ip2 = Column(float)

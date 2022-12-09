@@ -7,6 +7,7 @@ from auth_handler import signJWT
 from sqlalchemy import orm
 from sqlalchemy.orm import Session
 from database import engine, get_db
+from schemas import data_Mahasiswa
 
 import pickle
 import pandas as pd
@@ -17,7 +18,7 @@ import models,database
 import schemas
 
 pickle_in = open("mahasiswa.pkl","rb")
-mahasiswa = pickle.load(pickle_in)
+model_ml = pickle.load(pickle_in)
 pengguna = []
 app = FastAPI()
 models.Base.metadata.create_all(engine)
@@ -46,16 +47,23 @@ async def user_login(user: UserLoginSchema = Body(...)):
         "error": "Masukkan kembali username dan password Anda"
     }
 
-@app.post("/add", tags=["Data"])
+@app.post("/add", tags=["Data"], dependencies=[Depends(JWTBearer())])
 # menambahkan data API baru ke database
-def add_mahasiswa(new_mahasiswa:schemas.data_Mahasiswa,db:Session=Depends(get_db)):
+async def add_mahasiswa(new_mahasiswa:data_Mahasiswa,db:Session=Depends(get_db)):
         new_mahasiswa = models.data_Mahasiswa(**new_mahasiswa.dict())
         db.add(new_mahasiswa)
         db.commit()
         db.refresh(new_mahasiswa)
         return new_mahasiswa
+    
+@app.get("/show", tags=["Data"], dependencies=[Depends(JWTBearer())])
+async def retrieve_all_mahasiswa(db:Session= Depends(get_db)):
+    db_mahasiswa = db.query(models.data_Mahasiswa).all()
+    if db_mahasiswa == []:
+        raise HTTPException(status_code=404, detail="Tidak ada data mahasiswa dalam database")
+    return db_mahasiswa
 
-@app.post('/predict', tags=["Prediction"])
+@app.post('/predict', tags=["Prediction"], dependencies=[Depends(JWTBearer())])
 async def predict_kelulusan(data:mahasiswa):
     data = data.dict()
     ip1 = data['ip1']
@@ -63,7 +71,7 @@ async def predict_kelulusan(data:mahasiswa):
     ip3 = data['ip3']
     ip4 = data['ip4']
     sks = data['sks']
-    prediksi = mahasiswa.predict([[ip1, ip2, ip3, ip4, sks]])
+    prediksi = model_ml.predict([[ip1, ip2, ip3, ip4, sks]])
     return {"prediksi" : prediksi[0]}
 
 if __name__ == '__main__':
